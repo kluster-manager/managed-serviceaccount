@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -11,10 +12,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
+	kmapi "kmodules.xyz/client-go/api/v1"
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
+	"sigs.k8s.io/yaml"
 
 	"open-cluster-management.io/managed-serviceaccount/pkg/common"
 )
@@ -24,13 +27,29 @@ var FS embed.FS
 
 func GetDefaultValues(image string, imagePullSecret *corev1.Secret) addonfactory.GetValuesFunc {
 	return func(cluster *clusterv1.ManagedCluster, addon *addonv1alpha1.ManagedClusterAddOn) (addonfactory.Values, error) {
+		runAsUser := true
+		for _, cc := range cluster.Status.ClusterClaims {
+			if cc.Name == kmapi.ClusterClaimKeyInfo {
+				var info kmapi.ClusterInfo
+				if err := yaml.Unmarshal([]byte(cc.Value), &info); err != nil {
+					return nil, err
+				}
+				if slices.Contains(info.ClusterManagers, kmapi.ClusterManagerOpenShift.Name()) {
+					runAsUser = false
+				}
+				break
+			}
+		}
+
 		manifestConfig := struct {
 			ClusterName         string
 			Image               string
 			ImagePullSecretData string
+			RunAsUser           bool
 		}{
 			ClusterName: cluster.Name,
 			Image:       image,
+			RunAsUser:   runAsUser,
 		}
 
 		if imagePullSecret != nil {

@@ -61,7 +61,9 @@ spec:
                 - ALL
             privileged: false
             runAsNonRoot: true
+{{- if .RunAsUser }}
             runAsUser: 65534
+{{- end }}
             readOnlyRootFilesystem: true
             seccompProfile:
               type: RuntimeDefault
