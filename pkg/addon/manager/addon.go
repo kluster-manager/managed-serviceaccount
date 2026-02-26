@@ -16,7 +16,9 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
+	addonv1beta1 "open-cluster-management.io/api/addon/v1beta1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	"open-cluster-management.io/managed-serviceaccount/pkg/common"
@@ -60,15 +62,15 @@ func GetDefaultValues(image string, imagePullSecret *corev1.Secret) addonfactory
 	}
 }
 
-func NewRegistrationOption(nativeClient kubernetes.Interface) *agent.RegistrationOption {
+func NewRegistrationOption(kc client.Client, nativeClient kubernetes.Interface) *agent.RegistrationOption {
 	return &agent.RegistrationOption{
 		CSRConfigurations: agent.KubeClientSignerConfigurations(common.AddonName, common.AgentName),
 		CSRApproveCheck:   agent.ApprovalAllCSRs,
-		PermissionConfig:  setupPermission(nativeClient),
+		PermissionConfig:  setupPermission(kc, nativeClient),
 	}
 }
 
-func setupPermission(nativeClient kubernetes.Interface) agent.PermissionConfigFunc {
+func setupPermission(kc client.Client, nativeClient kubernetes.Interface) agent.PermissionConfigFunc {
 	return func(cluster *clusterv1.ManagedCluster, addon *addonv1alpha1.ManagedClusterAddOn) error {
 		namespace := cluster.Name
 		agentUser := "system:open-cluster-management:cluster:" + cluster.Name + ":addon:managed-serviceaccount:agent:addon-agent"
@@ -124,10 +126,26 @@ func setupPermission(nativeClient kubernetes.Interface) agent.PermissionConfigFu
 			},
 			Subjects: []rbacv1.Subject{
 				{
-					Kind: rbacv1.UserKind,
-					Name: agentUser,
+					Kind: "ServiceAccount",
+					Name: common.AddonName + "-agent",
 				},
 			},
+		}
+
+		managedClusterAddon := &addonv1beta1.ManagedClusterAddOn{}
+		if err := kc.Get(context.TODO(), client.ObjectKey{Namespace: namespace, Name: addon.Name}, managedClusterAddon); err != nil {
+			return err
+		}
+
+		for _, reg := range managedClusterAddon.Status.Registrations {
+			if reg.Type == addonv1beta1.KubeClient && reg.KubeClient.Driver == "csr" {
+				roleBinding.Subjects = []rbacv1.Subject{
+					{
+						Kind: "User",
+						Name: agentUser,
+					},
+				}
+			}
 		}
 
 		if _, err := nativeClient.RbacV1().Roles(namespace).Create(

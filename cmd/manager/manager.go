@@ -40,6 +40,8 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	"open-cluster-management.io/addon-framework/pkg/utils"
+	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
+	addonv1beta1 "open-cluster-management.io/api/addon/v1beta1"
 	addonclient "open-cluster-management.io/api/client/addon/clientset/versioned"
 	cpv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -64,6 +66,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(authv1beta1.AddToScheme(scheme))
 	utilruntime.Must(cpv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(addonv1alpha1.Install(scheme))
+	utilruntime.Must(addonv1beta1.Install(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -225,7 +229,7 @@ func (o *HubManagerOptions) Run() error {
 					addonfactory.ToAddOnDeploymentConfigValues,
 				),
 			).
-			WithAgentRegistrationOption(manager.NewRegistrationOption(nativeClient)).
+			WithAgentRegistrationOption(manager.NewRegistrationOption(mgr.GetClient(), nativeClient)).
 			WithAgentDeployTriggerClusterFilter(utils.ClusterImageRegistriesAnnotationChanged)
 
 		agentAddOn, err := agentFactory.BuildTemplateAgentAddon()
