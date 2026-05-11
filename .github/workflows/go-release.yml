@@ -24,6 +24,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
         with:
+          fetch-tags: true
           fetch-depth: 1
           path: go/src/open-cluster-management.io/managed-serviceaccount
       - name: get release version
@@ -48,6 +49,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
         with:
+          fetch-tags: true
           fetch-depth: 1
           path: go/src/open-cluster-management.io/managed-serviceaccount
       - name: install Go
@@ -75,6 +77,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
         with:
+          fetch-tags: true
           fetch-depth: 1
           path: go/src/open-cluster-management.io/managed-serviceaccount
       - name: create
@@ -100,6 +103,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
         with:
+          fetch-tags: true
           fetch-depth: 1
           path: go/src/open-cluster-management.io/managed-serviceaccount
       - name: setup helm
@@ -114,7 +118,7 @@ jobs:
         run: |
           echo "# Managed ServiceAccount ${{ needs.env.outputs.RELEASE_VERSION }}" > /home/runner/work/changelog.txt
       - name: publish release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@26994186c0ac3ef5cae75ac16aa32e8153525f77 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -125,7 +129,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
       - name: submit charts to OCM chart repo
-        uses: actions/github-script@v6
+        uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325 # v6
         with:
           github-token: ${{ secrets.OCM_BOT_PAT }}
           script: |
